@@ -1828,6 +1828,22 @@ lsmash_box_t *lsmash_get_box
     return (lsmash_box_t *)(entry ? entry->data : NULL);
 }
 
+uint64_t lsmash_get_box_size
+(
+    lsmash_box_t *box
+)
+{
+    return box->size;
+}
+
+uint64_t lsmash_get_box_pos
+(
+    lsmash_box_t *box
+)
+{
+    return box->pos;
+}
+
 lsmash_box_t *lsmash_create_box
 (
     lsmash_box_type_t type,

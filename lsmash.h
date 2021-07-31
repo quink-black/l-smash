@@ -573,6 +573,16 @@ lsmash_box_t *lsmash_get_box
     const lsmash_box_path_t box_path[]
 );
 
+uint64_t lsmash_get_box_size
+(
+    lsmash_box_t *box
+);
+
+uint64_t lsmash_get_box_pos
+(
+    lsmash_box_t *parent
+);
+
 /* Add a box into 'parent' box as a child box.
  *
  * Return 0 if successful.
