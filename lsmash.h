@@ -38,7 +38,11 @@ extern "C" {
 #ifdef LSMASH_API_IMPORTS
 #define LSMASH_API __declspec(dllimport)
 #else
+#ifdef _MSC_VER
+#define LSMASH_API __declspec(dllexport)
+#else
 #define LSMASH_API
+#endif
 #endif
 
 #define LSMASH_4CC( a, b, c, d ) (((a)<<24) | ((b)<<16) | ((c)<<8) | (d))
