@@ -829,7 +829,7 @@ int isom_timeline_construct( lsmash_root_t *root, uint32_t track_ID )
     int is_lpcm_audio          = isom_is_lpcm_audio( description );
     int is_qt_fixed_comp_audio = isom_is_qt_fixed_compressed_audio( description );
     int iso_sdtp = file->max_isom_version >= 2 || file->avc_extensions;
-    int allow_negative_sample_offset = ctts && ((file->max_isom_version >= 4 && ctts->version == 1) || file->qt_compatible);
+    int allow_negative_sample_offset = ctts && ((/*file->max_isom_version >= 4 &&*/ ctts->version == 1) || file->qt_compatible);
     uint32_t sample_number_in_stts_entry      = 1;
     uint32_t sample_number_in_ctts_entry      = 1;
     uint32_t sample_number_in_sbgp_roll_entry = 1;
