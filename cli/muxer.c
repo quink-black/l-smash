@@ -87,6 +87,9 @@ typedef struct
     int      disable;
     int      sbr;
     int      user_fps;
+    int      has_dv;
+    uint8_t  dv_profile;
+    uint8_t  dv_bl_signal_compatibility_id;
     uint32_t fps_num;
     uint32_t fps_den;
     uint32_t encoder_delay;
@@ -267,6 +270,7 @@ static void display_help( void )
              "\n"
              "Track options:\n"
              "    disable                   Disable this track\n"
+             "    dv-profile=<arg>          Specify Dolby Vision profile\n"
              "    fps=<arg>                 Specify video framerate\n"
              "                                  <arg> is <integer> or <integer>/<integer>\n"
              "    language=<string>         Specify media language\n"
@@ -662,6 +666,16 @@ static int parse_track_options( input_t *input )
                 char *track_parameter = strchr( track_option, '=' ) + 1;
                 track_opt->ISO_language = lsmash_pack_iso_language( track_parameter );
             }
+            else if( strstr( track_option, "dv-profile=" ) )
+            {
+                char *track_parameter = strchr( track_option, '=' ) + 1;
+                if( sscanf( track_parameter, "%"SCNu8".%"SCNu8, &track_opt->dv_profile, &track_opt->dv_bl_signal_compatibility_id ) == 1 )
+                {
+                    track_opt->dv_profile = atoi( track_parameter );
+                    track_opt->dv_bl_signal_compatibility_id = 0;
+                }
+                track_opt->has_dv = 1;
+            }
             else if( strstr( track_option, "fps=" ) )
             {
                 char *track_parameter = strchr( track_option, '=' ) + 1;
@@ -781,10 +795,19 @@ static int open_input_files( muxer_t *muxer )
                 if( opt->isom )
                     add_brand( opt, ISOM_BRAND_TYPE_AVC1 );
             }
+            else if( lsmash_check_codec_type_identical( codec_type, ISOM_CODEC_TYPE_AV01_VIDEO ) )
+            {
+                if( !opt->isom && opt->qtff )
+                    return ERROR_MSG( "the input seems AV1, at present available only for ISO Base Media file format.\n" );
+                if( opt->isom )
+                    add_brand( opt, ISOM_BRAND_TYPE_AV01 );
+            }
             else if( lsmash_check_codec_type_identical( codec_type, ISOM_CODEC_TYPE_HVC1_VIDEO ) )
             {
                 if( !opt->isom && opt->qtff )
                     return ERROR_MSG( "the input seems HEVC, at present available only for ISO Base Media file format.\n" );
+                if( in_track->opt.has_dv )
+                    add_brand( opt, ISOM_BRAND_TYPE_DBY1 );
             }
             else if( lsmash_check_codec_type_identical( codec_type, ISOM_CODEC_TYPE_VC_1_VIDEO ) )
             {
@@ -1002,6 +1025,19 @@ static int prepare_output( muxer_t *muxer )
                             timebase  = summary->timebase;
                         }
                     }
+                    if( track_opt->has_dv )
+                    {
+                        lsmash_codec_specific_t *dovi = lsmash_create_codec_specific_data( LSMASH_CODEC_SPECIFIC_DATA_TYPE_ISOM_VIDEO_HEVC_DOVI,
+                                                                                           LSMASH_CODEC_SPECIFIC_FORMAT_STRUCTURED );
+                        if( !dovi )
+                            return ERROR_MSG("Failed to allocate Dolby Vision configuration box.");
+                        lsmash_dovi_set_config(((lsmash_hevc_dovi_t*)dovi->data.structured), track_opt->dv_profile,
+                                               track_opt->dv_bl_signal_compatibility_id, timescale, timebase,
+                                               summary->width, summary->height);
+
+                        lsmash_add_codec_specific_data( in_track->summary, dovi );
+                        lsmash_destroy_codec_specific_data( dovi );
+                    }
                     media_param.timescale          = timescale;
                     media_param.media_handler_name = track_opt->handler_name ? track_opt->handler_name : "L-SMASH Video Handler";
                     media_param.roll_grouping      = 1;
@@ -1090,6 +1126,7 @@ static int do_mux( muxer_t *muxer )
     uint32_t num_active_input_tracks = out_movie->num_of_tracks;
     uint64_t total_media_size = 0;
     uint32_t progress_pos = 0;
+    int mux_ret = 0;
     while( 1 )
     {
         input_t *input = &muxer->input[current_input_number - 1];
@@ -1106,6 +1143,7 @@ static int do_mux( muxer_t *muxer )
                     return ERROR_MSG( "failed to alloc memory for buffer.\n" );
                 else if( ret <= -1 )
                 {
+                    mux_ret = LSMASH_ERR_INVALID_DATA;
                     lsmash_delete_sample( sample );
                     ERROR_MSG( "failed to get a frame from input file. Maybe corrupted.\n"
                                "Aborting muxing operation and trying to let output be valid file.\n" );
@@ -1138,10 +1176,7 @@ static int do_mux( muxer_t *muxer )
                     {
                         out_track->sample_entry = lsmash_add_sample_entry( output->root, out_track->track_ID, out_track->summary );
                         if( out_track->sample_entry == 0 )
-                        {
-                            ERROR_MSG( "failed to add sample description entry.\n" );
-                            break;
-                        }
+                            return ERROR_MSG( "failed to add sample description entry.\n" );
                     }
                 }
                 else if( ret == 2 ) /* EOF */
@@ -1152,7 +1187,10 @@ static int do_mux( muxer_t *muxer )
                     out_track->active = 0;
                     out_track->last_delta = lsmash_importer_get_last_delta( input->importer, input->current_track_number );
                     if( out_track->last_delta == 0 )
+                    {
+                        mux_ret = LSMASH_ERR_INVALID_DATA;
                         ERROR_MSG( "failed to get the last sample delta.\n" );
+                    }
                     out_track->last_delta *= out_track->timebase;
                     if( --num_active_input_tracks == 0 )
                         break;      /* Reached the end of whole tracks. */
@@ -1225,7 +1263,7 @@ static int do_mux( muxer_t *muxer )
         output_track_t *out_track = &out_movie->track[ out_movie->current_track_number - 1 ];
         uint32_t last_sample_delta = out_track->lpcm ? 1 : out_track->last_delta;
         if( lsmash_flush_pooled_samples( output->root, out_track->track_ID, last_sample_delta ) )
-            ERROR_MSG( "failed to flush the rest of samples.\n" );
+            return ERROR_MSG( "failed to flush the rest of samples.\n" );
         /* Create edit list.
          * Don't trust media duration basically. It's just duration of media, not duration of track presentation. */
         uint64_t actual_duration = out_track->lpcm
@@ -1236,10 +1274,12 @@ static int do_mux( muxer_t *muxer )
         edit.duration   = actual_duration * ((double)lsmash_get_movie_timescale( output->root ) / out_track->timescale);
         edit.start_time = out_track->priming_samples + out_track->start_offset;
         edit.rate       = ISOM_EDIT_MODE_NORMAL;
-        if( lsmash_create_explicit_timeline_map( output->root, out_track->track_ID, edit ) )
+        if( lsmash_create_explicit_timeline_map( output->root, out_track->track_ID, edit ) ) {
+            mux_ret = LSMASH_ERR_INVALID_DATA;
             ERROR_MSG( "failed to set timeline map.\n" );
+        }
     }
-    return 0;
+    return mux_ret;
 #undef LSMASH_MAX
 #undef LSMASH_MIN
 }
@@ -1278,6 +1318,7 @@ static int finish_movie( output_t *output, option_t *opt )
 
 int main( int argc, char *argv[] )
 {
+    int ret = 0;
     muxer_t muxer = { { 0 } };
     lsmash_get_mainargs( &argc, &argv );
     if( parse_global_options( argc, argv, &muxer ) )
@@ -1298,12 +1339,18 @@ int main( int argc, char *argv[] )
         return MUXER_ERR( "failed to open input files.\n" );
     if( prepare_output( &muxer ) )
         return MUXER_ERR( "failed to set up preparation for output.\n" );
-    if( do_mux( &muxer ) )
-        return MUXER_ERR( "failed to do muxing.\n" );
+    if( ( ret = do_mux( &muxer ) ) )
+    {
+        /* We wan't to finalize the movie if we only hit invalid input. */
+        if( ret == LSMASH_ERR_INVALID_DATA )
+            ret = -1;
+        else
+            return MUXER_ERR( "failed to do muxing.\n" );
+    }
     if( finish_movie( &muxer.output, &muxer.opt ) )
         return MUXER_ERR( "failed to finish movie.\n" );
     REFRESH_CONSOLE;
     eprintf( "Muxing completed!\n" );
     cleanup_muxer( &muxer );        /* including lsmash_destroy_root() */
-    return 0;
+    return ret;
 }
