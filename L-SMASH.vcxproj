@@ -134,6 +134,9 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='CLIDebug|Win32'">
     <IntDir>$(SolutionDir)$(Configuration)\$(ProjectName)\</IntDir>
   </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <IncludePath>$(ProjectDir)\thirdparty\obuparse;$(IncludePath)</IncludePath>
+  </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
@@ -277,6 +280,8 @@
   <ItemGroup>
     <ClCompile Include="codecs\a52.c" />
     <ClCompile Include="codecs\alac.c" />
+    <ClCompile Include="codecs\av1.c" />
+    <ClCompile Include="codecs\av1_obu.c" />
     <ClCompile Include="codecs\description.c" />
     <ClCompile Include="codecs\dts.c" />
     <ClCompile Include="codecs\h264.c" />
@@ -320,9 +325,12 @@
     <ClCompile Include="importer\nalu_imp.c" />
     <ClCompile Include="importer\vc1_imp.c" />
     <ClCompile Include="importer\wave_imp.c" />
+    <ClCompile Include="thirdparty\obuparse\obuparse.c" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="codecs\a52.h" />
+    <ClInclude Include="codecs\av1.h" />
+    <ClInclude Include="codecs\av1_obu.h" />
     <ClInclude Include="codecs\description.h" />
     <ClInclude Include="codecs\dts.h" />
     <ClInclude Include="codecs\h264.h" />

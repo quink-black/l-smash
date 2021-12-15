@@ -1,0 +1,3 @@
+[submodule "thirdparty/obuparse"]
+	path = thirdparty/obuparse
+	url = https://github.com/dwbuiten/obuparse.git

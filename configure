@@ -113,10 +113,10 @@ IMPLIB=""
 
 TOOLS=""
 
-CFLAGS="-Wshadow -Wall -std=c99 -pedantic -I. -I$SRCDIR"
+CFLAGS="-Wshadow -Wall -std=c99 -pedantic -I. -I$SRCDIR -I$SRCDIR/thirdparty/obuparse"
 LDFLAGS="-L."
 SO_LDFLAGS='-shared -Wl,-soname,$@ -Wl,--version-script,liblsmash.ver'
-LIBS="-lm -lobuparse"
+LIBS="-lm"
 
 for opt; do
     optarg="${opt#*=}"
@@ -359,6 +359,8 @@ SRC_CORE="        \
     timeline.c    \
     write.c"
 
+SRC_THIRD_PARTY="obuparse/obuparse.c"
+
 SRCS=""
 
 for src in $SRC_COMMON; do
@@ -375,6 +377,10 @@ done
 
 for src in $SRC_CORE; do
     SRCS="$SRCS core/$src"
+done
+
+for src in $SRC_THIRD_PARTY; do
+    SRCS="$SRCS thirdparty/$src"
 done
 
 SRC_CLI="cli.c"
@@ -505,7 +511,7 @@ done
 
 
 test "$SRCDIR" = "." || ln -sf ${SRCDIR}/Makefile .
-mkdir -p cli codecs common core importer
+mkdir -p cli codecs common core importer thirdparty/obuparse
 
 
 cat << EOF

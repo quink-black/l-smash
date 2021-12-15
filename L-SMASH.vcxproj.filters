@@ -102,9 +102,6 @@
     <ClCompile Include="importer\nalu_imp.c">
       <Filter>Sources</Filter>
     </ClCompile>
-    <ClCompile Include="codecs\opus.c">
-      <Filter>Sources</Filter>
-    </ClCompile>
     <ClCompile Include="common\osdep.c">
       <Filter>Sources</Filter>
     </ClCompile>
@@ -148,6 +145,15 @@
       <Filter>Sources</Filter>
     </ClCompile>
     <ClCompile Include="core\box_type.c">
+      <Filter>Sources</Filter>
+    </ClCompile>
+    <ClCompile Include="codecs\av1_obu.c">
+      <Filter>Sources</Filter>
+    </ClCompile>
+    <ClCompile Include="codecs\av1.c">
+      <Filter>Sources</Filter>
+    </ClCompile>
+    <ClCompile Include="thirdparty\obuparse\obuparse.c">
       <Filter>Sources</Filter>
     </ClCompile>
   </ItemGroup>
@@ -231,6 +237,12 @@
       <Filter>Headers</Filter>
     </ClInclude>
     <ClInclude Include="core\write.h">
+      <Filter>Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="codecs\av1.h">
+      <Filter>Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="codecs\av1_obu.h">
       <Filter>Headers</Filter>
     </ClInclude>
   </ItemGroup>
